@@ -1,0 +1,96 @@
+# =====================================================
+# ESPRIT LMS — On-Premise Docker Compose
+# All services run locally; DGX is external.
+# =====================================================
+# Start:  docker-compose -f docker-compose.onprem.yml up -d
+# Stop:   docker-compose -f docker-compose.onprem.yml down
+# Logs:   docker-compose -f docker-compose.onprem.yml logs -f backend
+# =====================================================
+
+services:
+  # ── PostgreSQL 16 with pgvector ──
+  postgres:
+    image: pgvector/pgvector:pg16
+    container_name: lms-postgres
+    environment:
+      POSTGRES_DB: lms
+      POSTGRES_USER: lms
+      POSTGRES_PASSWORD: lms
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U lms -d lms"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - lms-net
+
+  # ── MinIO (S3-compatible file storage) ──
+  minio:
+    image: minio/minio:latest
+    container_name: lms-minio
+    command: server /data --console-address ":9001"
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
+    ports:
+      - "9000:9000"   # S3 API
+      - "9001:9001"   # Web console
+    volumes:
+      - miniodata:/data
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - lms-net
+
+  # ── Mailhog (dev email testing — SMTP on 1025, UI on 8025) ──
+  mailhog:
+    image: mailhog/mailhog:latest
+    container_name: lms-mailhog
+    ports:
+      - "1025:1025"  # SMTP
+      - "8025:8025"  # Web UI
+    networks:
+      - lms-net
+
+  # ── Backend (Spring Boot) ──
+  # Uncomment when Docker image is built via CI/CD
+  # backend:
+  #   image: esprit-lms:latest
+  #   container_name: lms-backend
+  #   depends_on:
+  #     postgres:
+  #       condition: service_healthy
+  #     minio:
+  #       condition: service_healthy
+  #   environment:
+  #     SPRING_PROFILES_ACTIVE: onprem
+  #     DB_URL: jdbc:postgresql://postgres:5432/lms
+  #     DB_USERNAME: lms
+  #     DB_PASSWORD: lms
+  #     MINIO_ENDPOINT: http://minio:9000
+  #     MINIO_ACCESS_KEY: minioadmin
+  #     MINIO_SECRET_KEY: minioadmin
+  #     AI_EMBEDDING_URL: http://host.docker.internal:8001
+  #     AI_GENERATION_URL: http://host.docker.internal:8002
+  #     AUTH_JWT_SECRET: ${AUTH_JWT_SECRET}
+  #     EMAIL_SMTP_HOST: mailhog
+  #     EMAIL_SMTP_PORT: 1025
+  #   ports:
+  #     - "8080:8080"
+  #   networks:
+  #     - lms-net
+
+volumes:
+  pgdata:
+  miniodata:
+
+networks:
+  lms-net:
+    driver: bridge
