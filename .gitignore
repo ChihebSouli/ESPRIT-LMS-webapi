@@ -1,7 +1,7 @@
 # ESPRIT LMS — .gitignore
 
 # ── Build output ──
-target/
+
 build/
 *.class
 *.jar
