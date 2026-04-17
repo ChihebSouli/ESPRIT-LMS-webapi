@@ -1,3 +1,5 @@
+
+
 package com.esprit.lms.catalog.service;
 
 import com.esprit.lms.catalog.dto.*;
@@ -141,6 +143,8 @@ public class CatalogService {
     public void archiveItem(UUID id) {
         CatalogItem item = findActiveItem(id);
         item.setIsActive(false);
+
+
         catalogRepo.save(item);
         log.info("Archived catalog item: {} [{}]", item.getTitle(), id);
     }
@@ -174,6 +178,7 @@ public class CatalogService {
     // ── AI Reindex trigger ──
 
     @Transactional
+
     public void triggerReindex(UUID itemId) {
         CatalogItem item = findActiveItem(itemId);
         item.setAiStatus(AiStatus.PENDING);
@@ -186,9 +191,14 @@ public class CatalogService {
 
     private CatalogItem findActiveItem(UUID id) {
         return catalogRepo.findById(id)
+
                 .filter(CatalogItem::getIsActive)
                 .orElseThrow(() -> ApiException.notFound("Catalog item not found: " + id));
     }
+
+
+
+
 
     private CatalogSummaryDTO toSummary(CatalogItem item) {
         return CatalogSummaryDTO.builder()
